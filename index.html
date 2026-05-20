@@ -22,13 +22,13 @@
   import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
   const firebaseConfig = {
-    apiKey:            "AIzaSyAB4y0jPTUwy6fYGur1xDUlOmRWqB5bil4",
-    authDomain:        "viva-ptmt.firebaseapp.com",
-    databaseURL:       "https://viva-ptmt-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId:         "viva-ptmt",
-    storageBucket:     "viva-ptmt.firebasestorage.app",
-    messagingSenderId: "469649921663",
-    appId:             "1:469649921663:web:44f2103258933b4581914a"
+    apiKey:            "TVUJ_API_KEY",
+    authDomain:        "TVUJ_PROJECT.firebaseapp.com",
+    databaseURL:       "https://TVUJ_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "TVUJ_PROJECT",
+    storageBucket:     "TVUJ_PROJECT.appspot.com",
+    messagingSenderId: "TVOJE_SENDER_ID",
+    appId:             "TVOJE_APP_ID"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -139,6 +139,30 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg2)}
     <i class="ti ti-brand-firebase" style="font-size:36px;color:#f5820d;margin-bottom:8px"></i>
     <h2>Firebase není nakonfigurován</h2>
     <p>Otevři soubor <strong>index.html</strong> v textovém editoru a vyplň hodnoty z Firebase konzole (sekce firebaseConfig).<br/>Podrobný návod je v souboru <strong>NAVOD.md</strong>.</p>
+  </div>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div class="overlay" id="login-overlay">
+  <div class="overlay-box" style="text-align:left">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="width:48px;height:48px;background:#1a1a1a;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px">
+        <i class="ti ti-printer" style="font-size:24px;color:#fff"></i>
+      </div>
+      <h2 style="font-size:17px;font-weight:700">Vivantis PT Manager</h2>
+      <p style="font-size:13px;color:#6b6b68;margin-top:4px">Zadejte přístupové heslo</p>
+    </div>
+    <div style="margin-bottom:12px">
+      <input type="password" id="login-password" placeholder="Heslo" 
+        style="width:100%;background:#f5f5f3;border:0.5px solid rgba(0,0,0,.12);border-radius:6px;padding:11px 14px;font-size:15px;font-family:inherit;outline:none"
+        onkeydown="if(event.key==='Enter')zkontrolujHeslo()"/>
+    </div>
+    <div id="login-error" style="font-size:12px;color:#A32D2D;margin-bottom:10px;display:none">
+      <i class="ti ti-alert-circle" style="font-size:13px;vertical-align:-2px"></i> Nesprávné heslo
+    </div>
+    <button onclick="zkontrolujHeslo()" style="width:100%;background:#1a1a1a;color:#fff;border:none;border-radius:6px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+      Přihlásit se
+    </button>
   </div>
 </div>
 
@@ -781,13 +805,27 @@ function installApp(){ if(!deferredPrompt)return; deferredPrompt.prompt(); defer
 window.addEventListener('appinstalled',()=>document.getElementById('install-btn').style.display='none');
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
-// ── Init ───────────────────────────────────────────────────────
-document.getElementById('p-datum').value=dnes();
-document.getElementById('v-datum').value=dnes();
-initExportDates();
+// ── Heslo ──────────────────────────────────────────────────────
+const HESLO = 'VivaPrint';
+const SESSION_KEY = 'vptmt-auth';
 
-// Zkontroluj zda Firebase byl nakonfigurován
-function checkConfig(){
+function zkontrolujHeslo(){
+  const val = document.getElementById('login-password').value;
+  if(val === HESLO){
+    sessionStorage.setItem(SESSION_KEY, '1');
+    document.getElementById('login-overlay').style.display='none';
+    startApp();
+  } else {
+    document.getElementById('login-error').style.display='block';
+    document.getElementById('login-password').value='';
+    document.getElementById('login-password').focus();
+  }
+}
+
+function startApp(){
+  document.getElementById('p-datum').value=dnes();
+  document.getElementById('v-datum').value=dnes();
+  initExportDates();
   const cfg = document.querySelector('script[type="module"]').textContent;
   if(cfg.includes('TVUJ_API_KEY')){
     document.getElementById('config-overlay').style.display='flex';
@@ -796,7 +834,15 @@ function checkConfig(){
     document.addEventListener('fb-ready', ()=>fbListen(), {once:true});
   }
 }
-checkConfig();
+
+// ── Init ───────────────────────────────────────────────────────
+if(sessionStorage.getItem(SESSION_KEY)==='1'){
+  document.getElementById('login-overlay').style.display='none';
+  startApp();
+} else {
+  // zobraz login, fokus na pole
+  setTimeout(()=>document.getElementById('login-password').focus(), 100);
+}
 </script>
 </body>
 </html>
