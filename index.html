@@ -827,7 +827,7 @@ function startApp(){
   document.getElementById('v-datum').value=dnes();
   initExportDates();
   const cfg = document.querySelector('script[type="module"]').textContent;
-  if(cfg.includes('AIzaSyAB4y0jPTUwy6fYGur1xDUlOmRWqB5bil4')){
+  if(!cfg.includes('AIzaSyAB4y0jPTUwy6fYGur1xDUlOmRWqB5bil4')){
     document.getElementById('config-overlay').style.display='flex';
     setSyncStatus('err','není nakonfigurován');
   } else {
