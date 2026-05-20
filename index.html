@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#1a1a1a"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="VPTMT"/>
+<title>Vivantis PT Manager</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" href="icons/icon-192.png"/>
+<link rel="apple-touch-icon" href="icons/icon-192.png"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FIREBASE KONFIGURACE
+     Vyplň níže své vlastní hodnoty z Firebase konzole.
+     Viz NAVOD.md – krok 4.
+     ═══════════════════════════════════════════════════════════════ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey:            "TVUJ_API_KEY",
+    authDomain:        "TVUJ_PROJECT.firebaseapp.com",
+    databaseURL:       "https://TVUJ_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "TVUJ_PROJECT",
+    storageBucket:     "TVUJ_PROJECT.appspot.com",
+    messagingSenderId: "TVOJE_SENDER_ID",
+    appId:             "TVOJE_APP_ID"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  // Zpřístupni db globálně pro zbytek appky
+  window._db    = db;
+  window._ref   = ref;
+  window._set   = set;
+  window._get   = get;
+  window._onValue = onValue;
+  window._fbReady = true;
+  document.dispatchEvent(new Event('fb-ready'));
+</script>
+
+<style>
+:root{--bg:#fff;--bg2:#f5f5f3;--bg3:#efefed;--text:#1a1a1a;--text2:#6b6b68;--text3:#9b9b98;--border:rgba(0,0,0,.12);--border2:rgba(0,0,0,.22);--ok-bg:#EAF3DE;--ok-text:#3B6D11;--err-bg:#FCEBEB;--err-text:#A32D2D;--warn:#E24B4A;--r:10px;--rs:6px}
+@media(prefers-color-scheme:dark){:root{--bg:#1c1c1e;--bg2:#2c2c2e;--bg3:#3a3a3c;--text:#f2f2f7;--text2:#aeaeb2;--text3:#636366;--border:rgba(255,255,255,.1);--border2:rgba(255,255,255,.2);--ok-bg:#1a2e10;--ok-text:#a3d977;--err-bg:#2d1010;--err-text:#f09595}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);font-size:15px;min-height:100vh}
+.topbar{background:var(--bg);border-bottom:.5px solid var(--border);padding:0 16px;position:sticky;top:0;z-index:100}
+.topbar-inner{max-width:960px;margin:0 auto;display:flex;align-items:center;height:52px;gap:10px}
+.topbar-logo{width:30px;height:30px;background:var(--text);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.topbar h1{font-size:15px;font-weight:700;flex:1;line-height:1.2}
+.topbar h1 span{font-size:11px;font-weight:400;color:var(--text2);display:block;margin-top:1px}
+.sync-indicator{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;flex-shrink:0}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0}
+.sync-dot.ok{background:#5cb85c}.sync-dot.err{background:#E24B4A}.sync-dot.spin{background:#f0ad4e;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+#install-btn{display:none;background:var(--bg2);border:.5px solid var(--border);border-radius:var(--rs);padding:5px 10px;font-size:12px;cursor:pointer;color:var(--text);font-family:inherit;align-items:center;gap:4px}
+.tab-group{background:var(--bg);border-bottom:.5px solid var(--border);position:sticky;top:52px;z-index:99}
+.tab-row{display:flex;flex-wrap:wrap;max-width:960px;margin:0 auto}
+.tab-row+.tab-row{border-top:.5px solid var(--border)}
+.tab{padding:9px 14px;font-size:13px;cursor:pointer;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:5px;margin-bottom:-0.5px}
+.tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+.tab:hover:not(.active){color:var(--text)}
+.tab-row:last-child .tab{font-size:12px;padding:7px 12px;opacity:.8}
+.tab-row:last-child .tab.active{opacity:1}.tab-row:last-child .tab:hover:not(.active){opacity:1;color:var(--text)}
+.main{max-width:960px;margin:0 auto;padding:16px}
+.section{display:none}.section.active{display:block}
+.stock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:12px}
+.sc{background:var(--bg);border:.5px solid var(--border);border-radius:var(--r);padding:14px}
+.sc.low{border-color:var(--warn);background:var(--err-bg)}
+.sc-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.sc-model{font-size:13px;font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.sc-qty{font-size:30px;font-weight:600;line-height:1}.sc-qty.low{color:var(--warn)}
+.sc-unit{font-size:12px;color:var(--text2);font-weight:400}
+.sc-prn{font-size:11px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:.5px solid var(--border)}
+.sc-warn{font-size:11px;color:#A32D2D;margin-top:4px;display:flex;align-items:center;gap:3px;font-weight:500}
+.card{background:var(--bg);border:.5px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.card-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.4px}
+.fg input,.fg select,.fg textarea{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--rs);padding:9px 11px;font-size:14px;color:var(--text);font-family:inherit;width:100%;outline:none}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--border2)}
+.fg textarea{resize:vertical;min-height:90px;line-height:1.5}
+.btn{padding:9px 16px;border-radius:var(--rs);font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;display:inline-flex;align-items:center;gap:6px;border:.5px solid var(--border2);background:var(--bg2);color:var(--text)}
+.btn:active{opacity:.7}.btn-primary{background:var(--text);color:var(--bg);border-color:var(--text)}
+.btn-danger{background:var(--err-bg);color:var(--err-text);border-color:var(--warn)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.msg{padding:10px 14px;border-radius:var(--rs);font-size:13px;margin-bottom:12px}
+.msg-ok{background:var(--ok-bg);color:var(--ok-text)}.msg-err{background:var(--err-bg);color:var(--err-text)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;color:var(--text2);border-bottom:.5px solid var(--border);font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.3px;background:var(--bg2)}
+td{padding:9px 10px;border-bottom:.5px solid var(--border)}
+tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg2)}
+.mono{font-family:'SF Mono','Fira Code',monospace;font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-in{background:var(--ok-bg);color:var(--ok-text)}.badge-out{background:var(--err-bg);color:var(--err-text)}
+.email-box{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--rs);padding:14px;font-size:13px;line-height:1.8;white-space:pre-wrap;font-family:inherit}
+.empty{color:var(--text3);font-size:13px;text-align:center;padding:20px}
+.search-wrap{margin-bottom:12px}.search-wrap input{width:100%;background:var(--bg);border:.5px solid var(--border);border-radius:var(--rs);padding:9px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none}
+.cdot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0;border:.5px solid rgba(0,0,0,.12)}
+.info{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.order-table th{text-align:left;padding:8px 10px;font-size:12px;color:var(--text2);border-bottom:.5px solid var(--border);font-weight:500;text-transform:uppercase;background:var(--bg2)}
+.order-table td{padding:7px 10px;border-bottom:.5px solid var(--border);vertical-align:middle}
+.order-table tr:last-child td{border-bottom:none}.order-row-off{opacity:.4}
+.svoz-box{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--rs);padding:14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px}
+.svoz-box input[type=checkbox]{width:18px;height:18px;margin-top:2px;cursor:pointer;accent-color:var(--text);flex-shrink:0}
+.sec-lbl{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px}
+.divider{height:.5px;background:var(--border);margin:16px 0}
+.edit-field{background:var(--bg2);border:.5px solid var(--border);border-radius:4px;padding:4px 7px;font-size:13px;color:var(--text);font-family:inherit;width:100%;outline:none}
+.edit-field:focus{border-color:var(--border2)}
+.row-actions{display:flex;gap:4px;justify-content:flex-end}
+.toner-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:.5px solid var(--border)}
+.toner-row:last-child{border-bottom:none}
+.prn-info{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--rs);padding:12px 14px;margin-bottom:12px;font-size:13px;display:none}
+.prn-info.visible{display:block}
+.prn-info-row{display:flex;gap:8px;margin-bottom:4px}.prn-info-row:last-child{margin-bottom:0}
+.prn-info-label{font-size:12px;color:var(--text2);min-width:70px}
+.export-block{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+.export-block-title{font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.export-opts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.month-sel{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center}
+.overlay-box{background:var(--bg);border-radius:var(--r);padding:24px;max-width:380px;width:90%;text-align:center}
+.overlay-box h2{font-size:16px;margin-bottom:8px}
+.overlay-box p{font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6}
+@media(max-width:480px){.form-row{grid-template-columns:1fr}.stock-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- CONFIG CHECK OVERLAY -->
+<div class="overlay" id="config-overlay" style="display:none">
+  <div class="overlay-box">
+    <i class="ti ti-brand-firebase" style="font-size:36px;color:#f5820d;margin-bottom:8px"></i>
+    <h2>Firebase není nakonfigurován</h2>
+    <p>Otevři soubor <strong>index.html</strong> v textovém editoru a vyplň hodnoty z Firebase konzole (sekce firebaseConfig).<br/>Podrobný návod je v souboru <strong>NAVOD.md</strong>.</p>
+  </div>
+</div>
+
+<div class="topbar"><div class="topbar-inner">
+  <div class="topbar-logo"><i class="ti ti-printer" style="font-size:17px;color:#fff"></i></div>
+  <h1>Vivantis PT Manager <span>Printer/Toner Management Tool</span></h1>
+  <div class="sync-indicator" id="sync-indicator">
+    <div class="sync-dot spin" id="sync-dot"></div>
+    <span id="sync-label">připojuji…</span>
+  </div>
+  <button id="install-btn" onclick="installApp()"><i class="ti ti-download"></i> Instalovat</button>
+</div></div>
+
+<div class="tab-group">
+  <div class="tab-row">
+    <button class="tab active" onclick="showTab('prehled',this)"><i class="ti ti-layout-grid"></i> Stav skladu</button>
+    <button class="tab" onclick="showTab('prijem',this)"><i class="ti ti-package-import"></i> Příjem toneru</button>
+    <button class="tab" onclick="showTab('vydej',this)"><i class="ti ti-package-export"></i> Výdej toneru</button>
+    <button class="tab" onclick="showTab('objednavka',this)"><i class="ti ti-mail"></i> Objednávka</button>
+    <button class="tab" onclick="showTab('historie',this)"><i class="ti ti-history"></i> Historie</button>
+  </div>
+  <div class="tab-row">
+    <button class="tab" onclick="showTab('tiskarny',this)"><i class="ti ti-devices"></i> Tiskárny</button>
+    <button class="tab" onclick="showTab('servis',this)"><i class="ti ti-tool"></i> Servis</button>
+    <button class="tab" onclick="showTab('nastaveni',this)"><i class="ti ti-settings"></i> Nastavení</button>
+    <button class="tab" onclick="showTab('export',this)"><i class="ti ti-download"></i> Export</button>
+  </div>
+</div>
+
+<div class="main">
+<div id="msg-global"></div>
+
+<!-- STAV SKLADU -->
+<div class="section active" id="tab-prehled">
+  <div class="stock-grid" id="stock-grid"></div>
+  <p class="info"><i class="ti ti-info-circle"></i> Červeně = méně než <span id="lim-label">2</span> ks na skladě</p>
+</div>
+
+<!-- PŘÍJEM -->
+<div class="section" id="tab-prijem">
+  <div class="card"><div class="card-title"><i class="ti ti-package-import"></i> Příjem toneru na sklad</div>
+    <div class="form-row"><div class="fg"><label>Typ toneru</label><select id="p-typ"></select></div><div class="fg"><label>Počet ks</label><input type="number" id="p-ks" min="1" value="1"/></div></div>
+    <div class="form-row"><div class="fg"><label>Datum</label><input type="date" id="p-datum"/></div><div class="fg"><label>Poznámka</label><input type="text" id="p-poznamka" placeholder="volitelné"/></div></div>
+    <button class="btn btn-primary" onclick="prijem()"><i class="ti ti-plus"></i> Přijmout</button>
+  </div>
+</div>
+
+<!-- VÝDEJ -->
+<div class="section" id="tab-vydej">
+  <div class="card"><div class="card-title"><i class="ti ti-package-export"></i> Výdej toneru ze skladu</div>
+    <div class="form-row"><div class="fg"><label>Typ toneru</label><select id="v-typ" onchange="filterPrinters()"></select></div><div class="fg"><label>Počet ks</label><input type="number" id="v-ks" min="1" value="1"/></div></div>
+    <div class="form-row"><div class="fg"><label>Tiskárna</label><select id="v-tiskarna"><option value="">— vyberte —</option></select></div><div class="fg"><label>Datum</label><input type="date" id="v-datum"/></div></div>
+    <div class="fg" style="margin-bottom:14px"><label>Poznámka</label><input type="text" id="v-poznamka" placeholder="volitelné"/></div>
+    <button class="btn btn-primary" onclick="vydej()"><i class="ti ti-minus"></i> Vydat</button>
+  </div>
+</div>
+
+<!-- OBJEDNÁVKA -->
+<div class="section" id="tab-objednavka">
+  <div class="card"><div class="card-title"><i class="ti ti-settings-2"></i> Nastavení objednávky</div>
+    <div class="form-row" style="margin-bottom:14px">
+      <div class="fg"><label>Komu (email)</label><input type="text" id="o-email" placeholder="info@vdc.cz"/></div>
+      <div class="fg"><label>Odesílatel</label><input type="text" id="o-firma" placeholder="Vivantis a.s."/></div>
+    </div>
+    <div class="divider"></div><p class="sec-lbl">Položky objednávky</p>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Zaškrtni tonery k objednání a uprav počet kusů.</p>
+    <div style="overflow-x:auto"><table class="order-table"><thead><tr><th style="width:28px"></th><th>Toner</th><th style="width:90px">Skladem</th><th style="width:100px">Objednat ks</th></tr></thead><tbody id="order-tbody"></tbody></table></div>
+    <div class="divider"></div><p class="sec-lbl">Doplňkové služby</p>
+    <div class="svoz-box"><input type="checkbox" id="svoz-check" onchange="updateSubject()"/>
+      <div><div style="font-size:14px;font-weight:500"><i class="ti ti-recycle" style="font-size:15px;vertical-align:-2px"></i> Svoz použitých tonerů</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">Předmět se změní na „objednávka tonerů Vivantis + svoz".</div></div>
+    </div>
+    <div class="divider"></div><p class="sec-lbl">Předmět emailu</p>
+    <div class="fg" style="margin-bottom:16px"><input type="text" id="o-predmet" value="objednávka tonerů Vivantis"/></div>
+    <button class="btn btn-primary" onclick="generujObjednavku()"><i class="ti ti-mail"></i> Generovat návrh emailu</button>
+  </div>
+  <div id="email-container" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:14px;font-weight:600">Návrh emailu</span>
+      <button class="btn btn-primary btn-sm" onclick="kopirovatEmail()"><i class="ti ti-copy"></i> Kopírovat</button>
+    </div>
+    <div class="email-box" id="email-text"></div>
+  </div>
+</div>
+
+<!-- HISTORIE -->
+<div class="section" id="tab-historie">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <span class="info" id="hist-count"></span>
+    <button class="btn btn-danger btn-sm" onclick="mazatHistorii()"><i class="ti ti-trash"></i> Vymazat vše</button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
+    <table><thead><tr><th>Datum</th><th>Typ</th><th>Pohyb</th><th>Ks</th><th>Tiskárna</th><th>Poznámka</th></tr></thead><tbody id="hist-tbody"></tbody></table>
+  </div></div>
+</div>
+
+<!-- TISKÁRNY -->
+<div class="section" id="tab-tiskarny">
+  <div class="search-wrap"><input type="text" id="pr-search" placeholder="Hledat hostname, model, oddělení, toner..." oninput="renderPrinterTable()"/></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table><thead><tr><th>Hostname</th><th>Model / SN</th><th>Toner</th><th>Lokace</th><th>Odd.</th></tr></thead><tbody id="pr-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- SERVIS -->
+<div class="section" id="tab-servis">
+  <div class="card"><div class="card-title"><i class="ti ti-tool"></i> Objednat servis tiskárny</div>
+    <div class="form-row">
+      <div class="fg"><label>Komu (email)</label><input type="text" id="s-email" placeholder="info@vdc.cz"/></div>
+      <div class="fg"><label>Odesílatel</label><input type="text" id="s-firma" placeholder="Vivantis a.s."/></div>
+    </div>
+    <div class="divider"></div><p class="sec-lbl" style="margin-bottom:10px">Tiskárna</p>
+    <div class="fg" style="margin-bottom:12px"><label>Vyberte tiskárnu</label><select id="s-printer" onchange="onServisPrinterChange()"><option value="">— vyberte —</option></select></div>
+    <div class="prn-info" id="s-prn-info">
+      <div class="prn-info-row"><span class="prn-info-label">Model</span><strong id="si-model">–</strong></div>
+      <div class="prn-info-row"><span class="prn-info-label">SN</span><span id="si-sn" class="mono">–</span></div>
+      <div class="prn-info-row"><span class="prn-info-label">Hostname</span><span id="si-hostname" class="mono">–</span></div>
+      <div class="prn-info-row"><span class="prn-info-label">Lokace</span><span id="si-lokace" style="color:var(--text2)">–</span></div>
+      <div class="prn-info-row"><span class="prn-info-label">Oddělení</span><span id="si-oddeleni" style="color:var(--text2)">–</span></div>
+    </div>
+    <div class="divider"></div><p class="sec-lbl" style="margin-bottom:10px">Popis problému</p>
+    <div class="fg" style="margin-bottom:12px"><label>Typ závady</label>
+      <select id="s-typ-zavady">
+        <option value="">— vyberte nebo popište níže —</option>
+        <option>Tiskárna netiskne</option><option>Tisk je rozmazaný nebo nekvalitní</option>
+        <option>Tiskárna hlásí chybu / chybový kód</option><option>Zaseknutý papír (opakovaně)</option>
+        <option>Tiskárna není dostupná v síti</option><option>Tiskárna vydává hluk</option>
+        <option>Porucha podavače / scanneru</option><option value="jiné">Jiné (popsat níže)</option>
+      </select>
+    </div>
+    <div class="fg" style="margin-bottom:16px"><label>Podrobný popis</label><textarea id="s-popis" placeholder="Popište problém podrobněji..."></textarea></div>
+    <button class="btn btn-primary" onclick="generujServis()"><i class="ti ti-mail"></i> Generovat návrh emailu</button>
+  </div>
+  <div id="servis-email-container" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:14px;font-weight:600">Návrh emailu</span>
+      <button class="btn btn-primary btn-sm" onclick="kopirovatServisEmail()"><i class="ti ti-copy"></i> Kopírovat</button>
+    </div>
+    <div class="email-box" id="servis-email-text"></div>
+  </div>
+</div>
+
+<!-- NASTAVENÍ -->
+<div class="section" id="tab-nastaveni">
+  <div class="card"><div class="card-title"><i class="ti ti-alert-triangle"></i> Hranice upozornění</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <label style="font-size:13px;color:var(--text2)">Varovat při méně než</label>
+      <input type="number" id="n-limit" min="1" value="2" style="width:70px;background:var(--bg2);border:.5px solid var(--border);border-radius:var(--rs);padding:7px 10px;font-size:14px;color:var(--text);font-family:inherit;outline:none"/>
+      <span style="font-size:13px;color:var(--text2)">ks</span>
+    </div>
+    <button class="btn btn-primary" onclick="ulozitLimit()"><i class="ti ti-check"></i> Uložit</button>
+  </div>
+  <div class="card"><div class="card-title"><i class="ti ti-ink"></i> Typy tonerů</div>
+    <div id="toner-list" style="margin-bottom:14px"></div>
+    <div class="divider"></div><p class="sec-lbl" style="margin-bottom:10px">Přidat nový typ</p>
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div class="fg" style="flex:1"><label>Název toneru</label><input type="text" id="nt-nazev" placeholder="např. CRG-069H"/></div>
+      <button class="btn btn-primary" onclick="pridatToner()" style="flex-shrink:0"><i class="ti ti-plus"></i> Přidat</button>
+    </div>
+  </div>
+  <div class="card"><div class="card-title"><i class="ti ti-printer"></i> Tiskárny
+    <span style="margin-left:auto;font-size:12px;font-weight:400;color:var(--text2)" id="printer-count"></span></div>
+    <div class="search-wrap" style="margin-bottom:10px"><input type="text" id="ns-search" placeholder="Hledat..." oninput="renderPrinterSettings()"/></div>
+    <div id="printer-settings-list" style="margin-bottom:14px"></div>
+    <div class="divider"></div><p class="sec-lbl" style="margin-bottom:10px">Přidat novou tiskárnu</p>
+    <div class="form-row">
+      <div class="fg"><label>SN</label><input type="text" id="np-sn" placeholder="NEHA099999"/></div>
+      <div class="fg"><label>Hostname</label><input type="text" id="np-hostname" placeholder="chr-sko-prn-200"/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Model</label><input type="text" id="np-model" placeholder="LBP251DW"/></div>
+      <div class="fg"><label>Typ toneru</label><select id="np-toner"></select></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Lokace</label><input type="text" id="np-lokace" placeholder="1. patro, kancelář IT"/></div>
+      <div class="fg"><label>Oddělení</label><input type="text" id="np-oddeleni" placeholder="IT"/></div>
+    </div>
+    <button class="btn btn-primary" onclick="pridatTiskarnu()"><i class="ti ti-plus"></i> Přidat tiskárnu</button>
+  </div>
+</div>
+
+<!-- EXPORT -->
+<div class="section" id="tab-export">
+  <div class="export-block">
+    <div class="export-block-title"><i class="ti ti-devices"></i> Seznam tiskáren</div>
+    <p style="font-size:12px;color:var(--text2)">Všechny tiskárny včetně SN, modelu, toneru, lokace a oddělení.</p>
+    <div class="export-opts">
+      <button class="btn btn-primary btn-sm" onclick="exportTiskarnyCsv()"><i class="ti ti-file-spreadsheet"></i> CSV</button>
+      <button class="btn btn-sm" onclick="exportTiskarnyHtml()"><i class="ti ti-file-text"></i> HTML report</button>
+    </div>
+  </div>
+  <div class="export-block">
+    <div class="export-block-title"><i class="ti ti-package"></i> Stav skladu k datu</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Počty kusů každého toneru k vybranému datu.</p>
+    <div class="fg" style="max-width:200px;margin-bottom:10px"><label>Datum</label><input type="date" id="ex-sklad-datum"/></div>
+    <div class="export-opts">
+      <button class="btn btn-primary btn-sm" onclick="exportSkladCsv()"><i class="ti ti-file-spreadsheet"></i> CSV</button>
+      <button class="btn btn-sm" onclick="exportSkladHtml()"><i class="ti ti-file-text"></i> HTML report</button>
+    </div>
+  </div>
+  <div class="export-block">
+    <div class="export-block-title"><i class="ti ti-arrows-exchange"></i> Pohyby tonerů za období</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Detailní seznam příjmů a výdejů za zvolené období.</p>
+    <div class="form-row" style="max-width:440px;margin-bottom:10px">
+      <div class="fg"><label>Od</label><input type="date" id="ex-od"/></div>
+      <div class="fg"><label>Do</label><input type="date" id="ex-do"/></div>
+    </div>
+    <div class="fg" style="max-width:200px;margin-bottom:10px"><label>Typ pohybu</label>
+      <select id="ex-pohyb"><option value="">Příjem i výdej</option><option value="prijem">Pouze příjem</option><option value="vydej">Pouze výdej</option></select>
+    </div>
+    <div class="export-opts">
+      <button class="btn btn-primary btn-sm" onclick="exportPohybyCsv()"><i class="ti ti-file-spreadsheet"></i> CSV</button>
+      <button class="btn btn-sm" onclick="exportPohybyHtml()"><i class="ti ti-file-text"></i> HTML report</button>
+    </div>
+  </div>
+  <div class="export-block">
+    <div class="export-block-title"><i class="ti ti-chart-bar"></i> Souhrn spotřeby podle toneru</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Celkem přijato / vydáno za zvolené období.</p>
+    <div class="form-row" style="max-width:440px;margin-bottom:10px">
+      <div class="fg"><label>Od</label><input type="date" id="ex-sod"/></div>
+      <div class="fg"><label>Do</label><input type="date" id="ex-sdo"/></div>
+    </div>
+    <div class="export-opts">
+      <button class="btn btn-primary btn-sm" onclick="exportSouhrCsv()"><i class="ti ti-file-spreadsheet"></i> CSV</button>
+      <button class="btn btn-sm" onclick="exportSouhrHtml()"><i class="ti ti-file-text"></i> HTML report</button>
+    </div>
+  </div>
+  <div class="export-block">
+    <div class="export-block-title"><i class="ti ti-calendar-stats"></i> Měsíční přehled spotřeby</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Stav na začátku, příjem, výdej a stav na konci měsíce.</p>
+    <div class="month-sel">
+      <div class="fg"><label>Rok</label><select id="ex-rok" style="width:90px;background:var(--bg2);border:.5px solid var(--border);border-radius:var(--rs);padding:9px 11px;font-size:14px;color:var(--text);font-family:inherit;outline:none"></select></div>
+      <div class="fg"><label>Měsíc</label>
+        <select id="ex-mesic" style="width:140px;background:var(--bg2);border:.5px solid var(--border);border-radius:var(--rs);padding:9px 11px;font-size:14px;color:var(--text);font-family:inherit;outline:none">
+          <option value="01">Leden</option><option value="02">Únor</option><option value="03">Březen</option>
+          <option value="04">Duben</option><option value="05">Květen</option><option value="06">Červen</option>
+          <option value="07">Červenec</option><option value="08">Srpen</option><option value="09">Září</option>
+          <option value="10">Říjen</option><option value="11">Listopad</option><option value="12">Prosinec</option>
+        </select>
+      </div>
+    </div>
+    <div class="export-opts">
+      <button class="btn btn-primary btn-sm" onclick="exportMesicCsv()"><i class="ti ti-file-spreadsheet"></i> CSV</button>
+      <button class="btn btn-sm" onclick="exportMesicHtml()"><i class="ti ti-file-text"></i> HTML report</button>
+    </div>
+  </div>
+</div>
+</div><!-- /main -->
+
+<script>
+const APP_NAME = 'Vivantis Printer/Toner Management Tool';
+const COLOR_DOT = {BK:'#2C2C2A',C:'#185FA5',M:'#993556',Y:'#BA7517'};
+
+const DEFAULT_PRINTERS = [
+  {sn:"NEHA087193",model:"LBP251DW",toner:"CE505X / CF280X",hostname:"chr-sko-prn-001",lokace:"1. patro, sekce B, IT kancelář",oddeleni:"IT"},
+  {sn:"NMNA024254",model:"LBP251DW",toner:"CE505X / CF280X",hostname:"chr-sko-prn-002",lokace:"Budova D, 1.patro Velkoobchod",oddeleni:"Obchod"},
+  {sn:"WKL15359",model:"iR-ADV C255i",toner:"CEXV47",hostname:"chr-sko-prn-003",lokace:"1. patro, sekce C, chodba",oddeleni:"Účtárna"},
+  {sn:"NEHA081866",model:"LBP251DW",toner:"CE505X / CF280X",hostname:"chr-sko-prn-004",lokace:"1. patro, sekce C, hlavní účetní",oddeleni:"Účtárna"},
+  {sn:"2TU25761",model:"IR1643i",toner:"T06",hostname:"chr-sko-prn-005",lokace:"1. patro, sekce C, účtárna",oddeleni:"Účtárna"},
+  {sn:"NKFA003439",model:"LBP212DW",toner:"CRG-052H",hostname:"chr-sko-prn-006",lokace:"přízemí, Personální oddělení",oddeleni:"HR"},
+  {sn:"2MT24105",model:"iR-ADV C256i",toner:"CEXV55 BK",hostname:"chr-sko-prn-007",lokace:"přízemí, sekce F, chodba, Hodinky",oddeleni:"Obchod"},
+  {sn:"MF421DW-008",model:"MF421DW",toner:"CRG-052H",hostname:"chr-sko-prn-008",lokace:"přízemí, sekce F, chodba obchod hodinky šperky",oddeleni:"Obchod"},
+  {sn:"USU40730",model:"MF411DW",toner:"CE505X / CF280X",hostname:"chr-sko-prn-009",lokace:"přízemí, sekce G, recepce-výdejna",oddeleni:"PuP Chrudim"},
+  {sn:"NEHA087527",model:"LBP251DW",toner:"CE505X / CF280X",hostname:"chr-sko-prn-010",lokace:"1. patro IT, kancelář K2 tým",oddeleni:"IT"},
+  {sn:"NMNA009030",model:"LBP251DW",toner:"CE505X / CF280X",hostname:"chr-sko-prn-013",lokace:"Budova D, 1.patro Zákaznický servis",oddeleni:"ZAS"},
+  {sn:"2TG36974",model:"MF443dw",toner:"CRG-057H",hostname:"chr-par-prn-023",lokace:"skladová účtárna",oddeleni:"Depo"},
+  {sn:"NMNA006914",model:"LBP251DW",toner:"CE505X / CF280X",hostname:"chr-par-prn-027",lokace:"výdej MO Prozdraví",oddeleni:"Depo"},
+  {sn:"2TG52795",model:"MF443dw",toner:"CRG-057H",hostname:"chr-par-prn-030",lokace:"Logistici u vchodu",oddeleni:"Depo"},
+  {sn:"NMNA024253",model:"LBP251DW",toner:"CE505X / CF280X",hostname:"chr-par-prn-032",lokace:"výdej MO Móda",oddeleni:"Depo"},
+  {sn:"NMNA006917",model:"LBP251DW",toner:"CE505X / CF280X",hostname:"chr-par-prn-037",lokace:"ICT kancelář - Pavel Kopiš",oddeleni:"IT"},
+  {sn:"2TU24855",model:"IR1643i",toner:"T06",hostname:"chr-par-prn-040",lokace:"budova lékárny, Expedice VO",oddeleni:"Depo"},
+  {sn:"NMNA024184",model:"LBP251DW",toner:"CE505X / CF280X",hostname:"chr-par-prn-070",lokace:"výdej tisk dopravcům",oddeleni:"Depo"},
+  {sn:"NKFA015022",model:"LBP212DW",toner:"CRG-052H",hostname:"chr-par-prn-071",lokace:"Budova lékárny, Expedice VO štítky",oddeleni:"Depo"},
+  {sn:"NKFA003432",model:"LBP212DW",toner:"CRG-052H",hostname:"chr-par-prn-074",lokace:"výdej MO Hodinky",oddeleni:"Depo"},
+  {sn:"3UX21025",model:"MF443dw",toner:"CRG-057H",hostname:"chr-par2-prn-076",lokace:"Budova lékárny, Reklamace",oddeleni:"RMA"},
+  {sn:"2BW21262",model:"MF421DW",toner:"CRG-052H",hostname:"chr-par2-prn-078",lokace:"Budova lékárny, Reklamace",oddeleni:"RMA"},
+  {sn:"USU40731",model:"MF411DW",toner:"CE505X / CF280X",hostname:"pra-sok-prn-081",lokace:"Praha, Sokolovská 394/17",oddeleni:"PuP Florenc"},
+  {sn:"3UX59911",model:"MF443dw",toner:"CRG-057H",hostname:"chr-par-prn-088",lokace:"Depo kancelář Čechlovský",oddeleni:"Depo"},
+  {sn:"ER44103",model:"iR-ADV C257i",toner:"CEXV55 BK",hostname:"chr-sko-prn-090",lokace:"Budova D, u vchodu před fotostudiem",oddeleni:"MKT"},
+  {sn:"2TU14145",model:"ir-1643i",toner:"T06",hostname:"chr-par2-prn-098",lokace:"Budova lékárny, Reklamace",oddeleni:"RMA"},
+  {sn:"NEHA093919",model:"LBP251DW",toner:"CE505X / CF280X",hostname:"chr-par-prn-149",lokace:"Expedice parfémů",oddeleni:"Depo"},
+  {sn:"34X42986",model:"ir-1643i",toner:"T06",hostname:"pra-roz-prn-152",lokace:"výdejna Praha Westfield Chodov",oddeleni:"PuP chodov"},
+  {sn:"NKFA036218",model:"LBP212DW",toner:"CRG-052H",hostname:"pra-roz-prn-157",lokace:"výdejna Praha Westfield Chodov (wifi)",oddeleni:"PuP chodov"}
+];
+const DEFAULT_TONERS = ['CE505X / CF280X','CEXV47','CEXV55 BK','CEXV55 C','CEXV55 M','CEXV55 Y','CRG-052H','CRG-057H','T06'];
+
+// ── State ──────────────────────────────────────────────────────
+let history=[], config={limit:2,oEmail:'',oFirma:'',sEmail:'',sFirma:''};
+let printers=[...DEFAULT_PRINTERS], tonerTypes=[...DEFAULT_TONERS];
+let _emailCache='', _servisEmailCache='', editingPrinter=null;
+let _saving=false;
+
+// ── Firebase sync ──────────────────────────────────────────────
+function setSyncStatus(status, label){
+  const dot=document.getElementById('sync-dot');
+  const lbl=document.getElementById('sync-label');
+  dot.className='sync-dot '+status;
+  lbl.textContent=label;
+}
+
+function fbWrite(path, data){
+  if(!window._fbReady){ return; }
+  setSyncStatus('spin','ukládám…');
+  window._set(window._ref(window._db, path), data)
+    .then(()=>setSyncStatus('ok','synchronizováno'))
+    .catch(()=>setSyncStatus('err','chyba uložení'));
+}
+
+function fbListen(){
+  if(!window._fbReady){ setSyncStatus('err','Firebase nenakonfigurován'); return; }
+  setSyncStatus('spin','připojuji…');
+  window._onValue(window._ref(window._db, 'vptmt'), (snapshot)=>{
+    const data = snapshot.val();
+    if(data){
+      if(data.history)   history    = data.history;
+      if(data.config)    config     = {...config, ...data.config};
+      if(data.printers)  printers   = data.printers;
+      if(data.toners)    tonerTypes = data.toners;
+    }
+    setSyncStatus('ok','synchronizováno');
+    render();
+  }, (err)=>{
+    setSyncStatus('err','chyba připojení');
+  });
+}
+
+async function save(){
+  fbWrite('vptmt', {history, config, printers, toners: tonerTypes});
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+function getSortedToners(){ return [...tonerTypes].sort((a,b)=>a.localeCompare(b,'cs')); }
+function getStockAtDate(dateTo){
+  const s={}; getSortedToners().forEach(t=>s[t]=0);
+  history.filter(h=>h.datum<=dateTo).forEach(h=>{ if(s[h.typ]===undefined)s[h.typ]=0; s[h.typ]+=h.typ_pohybu==='prijem'?h.ks:-h.ks; });
+  return s;
+}
+function getStock(){ return getStockAtDate(dnes()); }
+function dot(t){ const c=COLOR_DOT[t.split(' ').pop()]; return c?`<span class="cdot" style="background:${c}"></span>`:'';}
+function dnes(){ return new Date().toISOString().split('T')[0]; }
+function fmtDatum(d){ if(!d)return'–'; const[y,m,dd]=d.split('-'); return`${dd}.${m}.${y}`; }
+function mesicNazev(m){ return['','Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'][parseInt(m)]; }
+
+function initExportDates(){
+  const d=dnes(), arr=d.split('-');
+  document.getElementById('ex-sklad-datum').value=d;
+  document.getElementById('ex-do').value=d; document.getElementById('ex-sdo').value=d;
+  document.getElementById('ex-od').value=`${arr[0]}-${arr[1]}-01`;
+  document.getElementById('ex-sod').value=`${arr[0]}-${arr[1]}-01`;
+  const rok=document.getElementById('ex-rok'); const curY=parseInt(arr[0]);
+  for(let y=curY;y>=curY-3;y--){ const o=document.createElement('option'); o.value=y; o.textContent=y; rok.appendChild(o); }
+  let pm=parseInt(arr[1])-1, py=curY; if(pm===0){pm=12;py--;}
+  document.getElementById('ex-rok').value=py;
+  document.getElementById('ex-mesic').value=String(pm).padStart(2,'0');
+}
+
+// ── Render ─────────────────────────────────────────────────────
+function render(){
+  const tt=getSortedToners();
+  renderStock(); renderSelects(tt); filterPrinters(); renderHistory();
+  renderPrinterTable(); renderPrinterSettings(); renderTonerList(tt); renderOrderTable(tt); renderServisPrinterSelect();
+  document.getElementById('n-limit').value=config.limit;
+  document.getElementById('lim-label').textContent=config.limit;
+  if(config.oEmail) document.getElementById('o-email').value=config.oEmail;
+  if(config.oFirma) document.getElementById('o-firma').value=config.oFirma;
+  if(config.sEmail) document.getElementById('s-email').value=config.sEmail;
+  if(config.sFirma) document.getElementById('s-firma').value=config.sFirma;
+  const npSel=document.getElementById('np-toner'); const npVal=npSel.value;
+  npSel.innerHTML=tt.map(t=>`<option value="${t}">${t}</option>`).join(''); if(npVal)npSel.value=npVal;
+}
+function renderStock(){
+  const stock=getStock(), lim=config.limit, tt=getSortedToners();
+  document.getElementById('stock-grid').innerHTML=tt.map(t=>{
+    const qty=stock[t]||0, low=qty<lim, cnt=printers.filter(p=>p.toner===t).length;
+    return`<div class="sc ${low?'low':''}"><div class="sc-lbl">Toner Canon</div>
+      <div class="sc-model">${dot(t)} ${t}</div>
+      <div class="sc-qty ${low?'low':''}">${qty} <span class="sc-unit">ks</span></div>
+      <div class="sc-prn"><i class="ti ti-printer" style="font-size:11px;vertical-align:-1px"></i> ${cnt} tiskáren</div>
+      ${low?`<div class="sc-warn"><i class="ti ti-alert-circle" style="font-size:12px"></i> Nízký stav!</div>`:''}</div>`;
+  }).join('');
+}
+function renderSelects(tt){
+  ['p-typ','v-typ'].forEach(id=>{ const el=document.getElementById(id); const v=el.value; el.innerHTML=tt.map(t=>`<option value="${t}">${t}</option>`).join(''); if(v)el.value=v; });
+}
+function filterPrinters(){
+  const typ=document.getElementById('v-typ').value, sel=document.getElementById('v-tiskarna'), prev=sel.value;
+  sel.innerHTML='<option value="">— vyberte —</option>'+printers.filter(p=>p.toner===typ).map(p=>`<option value="${p.hostname}">${p.hostname} – ${p.lokace}</option>`).join('');
+  if(prev)sel.value=prev;
+}
+function renderServisPrinterSelect(){
+  const sel=document.getElementById('s-printer'), prev=sel.value;
+  sel.innerHTML='<option value="">— vyberte —</option>'+[...printers].sort((a,b)=>a.hostname.localeCompare(b.hostname)).map(p=>`<option value="${p.hostname}">${p.hostname} – ${p.model} (${p.oddeleni})</option>`).join('');
+  if(prev){sel.value=prev; onServisPrinterChange();}
+}
+function onServisPrinterChange(){
+  const h=document.getElementById('s-printer').value, info=document.getElementById('s-prn-info');
+  if(!h){info.classList.remove('visible');return;}
+  const p=printers.find(x=>x.hostname===h); if(!p){info.classList.remove('visible');return;}
+  document.getElementById('si-model').textContent=p.model; document.getElementById('si-sn').textContent=p.sn||'–';
+  document.getElementById('si-hostname').textContent=p.hostname; document.getElementById('si-lokace').textContent=p.lokace||'–';
+  document.getElementById('si-oddeleni').textContent=p.oddeleni||'–'; info.classList.add('visible');
+  document.getElementById('servis-email-container').style.display='none';
+}
+function renderHistory(){
+  const tbody=document.getElementById('hist-tbody'), cnt=document.getElementById('hist-count');
+  if(!history.length){tbody.innerHTML='<tr><td colspan="6" class="empty">Žádné záznamy</td></tr>';cnt.textContent='';return;}
+  cnt.textContent=`${history.length} záznamů`;
+  tbody.innerHTML=[...history].reverse().map(h=>`<tr>
+    <td>${fmtDatum(h.datum)}</td><td style="display:flex;align-items:center;gap:4px">${dot(h.typ)} ${h.typ}</td>
+    <td><span class="badge ${h.typ_pohybu==='prijem'?'badge-in':'badge-out'}">${h.typ_pohybu==='prijem'?'příjem':'výdej'}</span></td>
+    <td>${h.ks}</td><td class="mono">${h.tiskarna||'–'}</td>
+    <td style="color:var(--text2);font-size:12px">${h.poznamka||'–'}</td></tr>`).join('');
+}
+function renderPrinterTable(){
+  const q=(document.getElementById('pr-search').value||'').toLowerCase();
+  const rows=printers.filter(p=>!q||[p.hostname,p.model,p.oddeleni,p.lokace,p.toner,p.sn||''].some(v=>v.toLowerCase().includes(q)));
+  document.getElementById('pr-tbody').innerHTML=rows.length?rows.map(p=>`<tr>
+    <td class="mono">${p.hostname}</td>
+    <td><div style="font-size:13px">${p.model}</div><div style="font-size:11px;color:var(--text2)">${p.sn||''}</div></td>
+    <td><span style="font-size:12px;background:var(--bg2);padding:2px 7px;border-radius:4px;display:inline-flex;align-items:center;gap:4px">${dot(p.toner)}${p.toner}</span></td>
+    <td style="font-size:12px;color:var(--text2)">${p.lokace}</td>
+    <td style="font-size:12px">${p.oddeleni}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Žádné výsledky</td></tr>';
+}
+function renderPrinterSettings(){
+  const q=(document.getElementById('ns-search').value||'').toLowerCase(), tt=getSortedToners();
+  const filtered=printers.filter(p=>!q||[p.hostname,p.model,p.oddeleni,p.lokace,p.toner,p.sn||''].some(v=>v.toLowerCase().includes(q)));
+  document.getElementById('printer-count').textContent=`${printers.length} tiskáren`;
+  if(!filtered.length){document.getElementById('printer-settings-list').innerHTML='<p class="empty">Žádné výsledky</p>';return;}
+  document.getElementById('printer-settings-list').innerHTML=`<div style="overflow-x:auto"><table>
+    <thead><tr><th>Hostname</th><th>SN</th><th>Model</th><th>Toner</th><th>Lokace</th><th>Odd.</th><th style="width:80px"></th></tr></thead>
+    <tbody>${filtered.map(p=>{ const i=printers.indexOf(p);
+      if(editingPrinter===i) return`<tr style="background:var(--bg2)">
+        <td><input class="edit-field" id="ep-hostname" value="${p.hostname}" style="min-width:120px"/></td>
+        <td><input class="edit-field" id="ep-sn" value="${p.sn||''}" style="min-width:90px"/></td>
+        <td><input class="edit-field" id="ep-model" value="${p.model}" style="min-width:90px"/></td>
+        <td><select class="edit-field" id="ep-toner" style="min-width:120px">${tt.map(t=>`<option value="${t}" ${p.toner===t?'selected':''}>${t}</option>`).join('')}</select></td>
+        <td><input class="edit-field" id="ep-lokace" value="${p.lokace}" style="min-width:140px"/></td>
+        <td><input class="edit-field" id="ep-oddeleni" value="${p.oddeleni}" style="min-width:70px"/></td>
+        <td><div class="row-actions"><button class="btn btn-primary btn-sm" onclick="ulozitTiskarnu(${i})"><i class="ti ti-check"></i></button><button class="btn btn-sm" onclick="zrusitEditaci()"><i class="ti ti-x"></i></button></div></td></tr>`;
+      return`<tr><td class="mono" style="font-size:12px">${p.hostname}</td><td style="font-size:12px;color:var(--text2)">${p.sn||'–'}</td><td style="font-size:13px">${p.model}</td>
+        <td><span style="font-size:12px;background:var(--bg2);padding:2px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:3px">${dot(p.toner)}${p.toner}</span></td>
+        <td style="font-size:12px;color:var(--text2)">${p.lokace}</td><td style="font-size:12px">${p.oddeleni}</td>
+        <td><div class="row-actions"><button class="btn btn-sm" onclick="editovatTiskarnu(${i})"><i class="ti ti-pencil"></i></button><button class="btn btn-danger btn-sm" onclick="odebratTiskarnu(${i})"><i class="ti ti-trash"></i></button></div></td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+function renderTonerList(tt){
+  const el=document.getElementById('toner-list'); if(!tt.length){el.innerHTML='<p class="empty">Žádné typy tonerů</p>';return;}
+  el.innerHTML=tt.map(t=>`<div class="toner-row">${dot(t)}<span style="flex:1;font-size:14px">${t}</span><span style="font-size:12px;color:var(--text2);margin-right:8px">${printers.filter(p=>p.toner===t).length} tisk.</span><button class="btn btn-danger btn-sm" onclick="odebratToner('${t}')"><i class="ti ti-trash"></i></button></div>`).join('');
+}
+function renderOrderTable(tt){
+  const stock=getStock(), lim=config.limit;
+  document.getElementById('order-tbody').innerHTML=tt.map(t=>{
+    const qty=stock[t]||0, low=qty<lim, def=Math.max(1,5-qty), tid=t.replace(/[^a-zA-Z0-9]/g,'_');
+    return`<tr id="orow_${tid}" class="${low?'':'order-row-off'}">
+      <td><input type="checkbox" id="ochk_${tid}" ${low?'checked':''} onchange="toggleOrderRow('${tid}')" style="width:16px;height:16px;cursor:pointer"/></td>
+      <td style="display:flex;align-items:center;gap:5px">${dot(t)}<span style="font-size:13px">${t}</span>${low?`<span style="font-size:11px;color:#A32D2D;background:#FCEBEB;padding:1px 6px;border-radius:10px;margin-left:4px">nízký stav</span>`:''}</td>
+      <td style="font-size:13px;color:${low?'#A32D2D':'var(--text2)'}"><strong>${qty}</strong> ks</td>
+      <td><input type="number" id="oqty_${tid}" min="0" value="${low?def:0}" style="width:75px;background:var(--bg2);border:.5px solid var(--border);border-radius:var(--rs);padding:6px 8px;font-size:14px;color:var(--text);font-family:inherit;opacity:${low?1:.4}" ${low?'':'disabled'}/></td></tr>`;
+  }).join('');
+}
+
+// ── Actions ────────────────────────────────────────────────────
+function toggleOrderRow(tid){
+  const chk=document.getElementById('ochk_'+tid), inp=document.getElementById('oqty_'+tid), row=document.getElementById('orow_'+tid);
+  if(chk.checked){inp.disabled=false;inp.style.opacity=1;row.classList.remove('order-row-off');if(!parseInt(inp.value))inp.value=1;}
+  else{inp.disabled=true;inp.style.opacity=.4;row.classList.add('order-row-off');}
+}
+function updateSubject(){ document.getElementById('o-predmet').value=document.getElementById('svoz-check').checked?'objednávka tonerů Vivantis + svoz':'objednávka tonerů Vivantis'; }
+function generujObjednavku(){
+  const email=document.getElementById('o-email').value||'info@vdc.cz', firma=document.getElementById('o-firma').value||'Vivantis a.s.';
+  const predmet=document.getElementById('o-predmet').value, svoz=document.getElementById('svoz-check').checked;
+  config.oEmail=email; config.oFirma=firma; save();
+  const polozky=[];
+  getSortedToners().forEach(t=>{ const tid=t.replace(/[^a-zA-Z0-9]/g,'_'); const chk=document.getElementById('ochk_'+tid); const qty=parseInt(document.getElementById('oqty_'+tid).value)||0; if(chk&&chk.checked&&qty>0)polozky.push({typ:t,qty}); });
+  if(!polozky.length){document.getElementById('email-container').style.display='none';msg('Nevybral jsi žádné položky.','err');return;}
+  const svozText=svoz?'\n\nPoprosím Vás také a svoz jedné krabice použitých tonerů':'';
+  _emailCache=`Dobrý den,\n\nProsím o zaslání následujících tonerů\n\n${polozky.map(p=>`${p.qty} X ${p.typ}`).join('\n')}${svozText}\n\nDěkuji a přeji hezký den\n\n${firma}`;
+  document.getElementById('email-text').textContent=_emailCache; document.getElementById('email-container').style.display='block';
+}
+function kopirovatEmail(){ navigator.clipboard.writeText(_emailCache).then(()=>msg('Zkopírováno.')); }
+function generujServis(){
+  const hostname=document.getElementById('s-printer').value;
+  const email=document.getElementById('s-email').value||'info@vdc.cz', firma=document.getElementById('s-firma').value||'Vivantis a.s.';
+  const typZavady=document.getElementById('s-typ-zavady').value, popis=document.getElementById('s-popis').value.trim();
+  if(!hostname){msg('Vyberte tiskárnu.','err');return;}
+  if(!typZavady&&!popis){msg('Vyplňte typ závady nebo popis.','err');return;}
+  const p=printers.find(x=>x.hostname===hostname); if(!p)return;
+  config.sEmail=email; config.sFirma=firma; save();
+  const pr=[]; if(typZavady&&typZavady!=='jiné')pr.push(typZavady); if(popis)pr.push(popis);
+  _servisEmailCache=`Dobrý den,\n\nprosím o zajištění servisu tiskárny:\n\n  Model:     ${p.model}\n  SN:        ${p.sn||'–'}\n  Hostname:  ${p.hostname}\n  Lokace:    ${p.lokace||'–'}\n  Oddělení:  ${p.oddeleni||'–'}\n\nPopis problému:\n${pr.join('\n')}\n\nPředem děkuji za zajištění servisu a přeji hezký den\n\n${firma}`;
+  document.getElementById('servis-email-text').textContent=_servisEmailCache;
+  document.getElementById('servis-email-container').style.display='block';
+  document.getElementById('servis-email-container').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function kopirovatServisEmail(){ navigator.clipboard.writeText(_servisEmailCache).then(()=>msg('Zkopírováno.')); }
+function prijem(){
+  const typ=document.getElementById('p-typ').value, ks=parseInt(document.getElementById('p-ks').value);
+  const datum=document.getElementById('p-datum').value||dnes(), poznamka=document.getElementById('p-poznamka').value;
+  if(!typ||ks<1){msg('Vyplňte typ a počet ks.','err');return;}
+  history.push({typ,ks,datum,typ_pohybu:'prijem',tiskarna:'',poznamka,id:Date.now()});
+  save(); render(); msg(`✓ Příjem ${ks} ks / ${typ}`);
+  document.getElementById('p-ks').value=1; document.getElementById('p-poznamka').value='';
+}
+function vydej(){
+  const typ=document.getElementById('v-typ').value, ks=parseInt(document.getElementById('v-ks').value);
+  const tiskarna=document.getElementById('v-tiskarna').value, datum=document.getElementById('v-datum').value||dnes(), poznamka=document.getElementById('v-poznamka').value;
+  if(!typ||ks<1){msg('Vyplňte typ a počet ks.','err');return;}
+  const stock=getStock(); if((stock[typ]||0)<ks){msg(`Nedostatek! Na skladě: ${stock[typ]||0} ks.`,'err');return;}
+  history.push({typ,ks,datum,typ_pohybu:'vydej',tiskarna,poznamka,id:Date.now()});
+  save(); render(); msg(`✓ Výdej ${ks} ks / ${typ}${tiskarna?' → '+tiskarna:''}`);
+  document.getElementById('v-ks').value=1; document.getElementById('v-tiskarna').value=''; document.getElementById('v-poznamka').value='';
+}
+function mazatHistorii(){ if(!confirm('Opravdu vymazat celou historii?'))return; history=[]; save(); render(); msg('Historie vymazána.'); }
+function ulozitLimit(){ config.limit=parseInt(document.getElementById('n-limit').value)||2; save(); render(); msg('Uloženo.'); }
+function editovatTiskarnu(i){ editingPrinter=i; renderPrinterSettings(); }
+function zrusitEditaci(){ editingPrinter=null; renderPrinterSettings(); }
+function ulozitTiskarnu(i){
+  const hostname=document.getElementById('ep-hostname').value.trim(), sn=document.getElementById('ep-sn').value.trim();
+  const model=document.getElementById('ep-model').value.trim(), toner=document.getElementById('ep-toner').value;
+  const lokace=document.getElementById('ep-lokace').value.trim(), oddeleni=document.getElementById('ep-oddeleni').value.trim();
+  if(!hostname||!model||!toner){msg('Hostname, model a toner jsou povinné.','err');return;}
+  printers[i]={sn,model,toner,hostname,lokace,oddeleni}; editingPrinter=null; save(); render(); msg(`Tiskárna ${hostname} uložena.`);
+}
+function odebratTiskarnu(i){
+  if(!confirm(`Odebrat tiskárnu ${printers[i].hostname}?`))return;
+  const h=printers[i].hostname; printers.splice(i,1); if(editingPrinter===i)editingPrinter=null; save(); render(); msg(`Tiskárna ${h} odebrána.`);
+}
+function pridatTiskarnu(){
+  const sn=document.getElementById('np-sn').value.trim(), hostname=document.getElementById('np-hostname').value.trim();
+  const model=document.getElementById('np-model').value.trim(), toner=document.getElementById('np-toner').value;
+  const lokace=document.getElementById('np-lokace').value.trim(), oddeleni=document.getElementById('np-oddeleni').value.trim();
+  if(!hostname||!model||!toner){msg('Hostname, model a toner jsou povinné.','err');return;}
+  if(printers.find(p=>p.hostname===hostname)){msg(`Hostname ${hostname} již existuje.`,'err');return;}
+  printers.push({sn,model,toner,hostname,lokace,oddeleni}); save(); render();
+  ['np-sn','np-hostname','np-model','np-lokace','np-oddeleni'].forEach(id=>document.getElementById(id).value=''); msg(`Tiskárna ${hostname} přidána.`);
+}
+function pridatToner(){
+  const val=document.getElementById('nt-nazev').value.trim(); if(!val){msg('Zadej název toneru.','err');return;}
+  if(tonerTypes.includes(val)){msg('Tento typ již existuje.','err');return;}
+  tonerTypes.push(val); save(); render(); document.getElementById('nt-nazev').value=''; msg(`Toner ${val} přidán.`);
+}
+function odebratToner(t){
+  const cnt=printers.filter(p=>p.toner===t).length;
+  if(!confirm(`Odebrat typ toneru "${t}"?${cnt>0?` ${cnt} tiskáren bude bez toneru.`:''}`))return;
+  tonerTypes=tonerTypes.filter(x=>x!==t); save(); render(); msg(`Toner ${t} odebrán.`);
+}
+
+// ── Export ─────────────────────────────────────────────────────
+function dl(fn,content,mime){ const a=document.createElement('a'); a.href='data:'+mime+';charset=utf-8,'+encodeURIComponent(content); a.download=fn; a.click(); }
+function csvStr(rows){ return rows.map(r=>r.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(',')).join('\n'); }
+function htmlReport(title,subtitle,tableHtml){
+  return`<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"/><title>${title}</title><style>
+    body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-width:1100px;margin:0 auto}
+    h1{font-size:18px;margin-bottom:4px}p.sub{color:#666;font-size:12px;margin-bottom:20px}
+    table{width:100%;border-collapse:collapse}th{background:#f0f0ee;text-align:left;padding:7px 10px;font-size:12px;border-bottom:1.5px solid #ccc}
+    td{padding:7px 10px;border-bottom:0.5px solid #ddd;font-size:13px}tr:nth-child(even) td{background:#fafaf8}
+    .low{color:#A32D2D;font-weight:bold}.pos{color:#3B6D11}.badge{padding:2px 7px;border-radius:10px;font-size:11px;font-weight:bold}
+    .in{background:#EAF3DE;color:#3B6D11}.out{background:#FAECE7;color:#993C1D}
+    @media print{button{display:none}}
+  </style></head><body>
+  <h1>${title}</h1><p class="sub">${subtitle} · ${APP_NAME}</p>
+  <button onclick="window.print()" style="margin-bottom:16px;padding:6px 14px;cursor:pointer;font-size:12px">🖨 Tisknout / uložit jako PDF</button>
+  ${tableHtml}</body></html>`;
+}
+function exportTiskarnyCsv(){ dl(`VPTMT-tiskárny-${dnes()}.csv`,'\uFEFF'+csvStr([['Hostname','SN','Model','Toner','Lokace','Oddělení'],...printers.map(p=>[p.hostname,p.sn||'',p.model,p.toner,p.lokace,p.oddeleni])]),'text/csv'); msg('CSV exportováno.'); }
+function exportTiskarnyHtml(){
+  const rows=printers.map(p=>`<tr><td style="font-family:monospace;font-size:12px">${p.hostname}</td><td style="color:#666;font-size:12px">${p.sn||'–'}</td><td>${p.model}</td><td>${p.toner}</td><td style="color:#666">${p.lokace}</td><td>${p.oddeleni}</td></tr>`).join('');
+  dl(`VPTMT-tiskárny-${dnes()}.html`,htmlReport('Seznam tiskáren',`Celkem ${printers.length} tiskáren · ${fmtDatum(dnes())}`,`<table><thead><tr><th>Hostname</th><th>SN</th><th>Model</th><th>Toner</th><th>Lokace</th><th>Oddělení</th></tr></thead><tbody>${rows}</tbody></table>`),'text/html'); msg('HTML report exportován.');
+}
+function exportSkladCsv(){
+  const d=document.getElementById('ex-sklad-datum').value||dnes(), stock=getStockAtDate(d), tt=getSortedToners();
+  dl(`VPTMT-sklad-${d}.csv`,'\uFEFF'+csvStr([['Typ toneru','Stav (ks)','Poznámka'],...tt.map(t=>[t,stock[t]||0,(stock[t]||0)<config.limit?'nízký stav':''])]),'text/csv'); msg('CSV exportováno.');
+}
+function exportSkladHtml(){
+  const d=document.getElementById('ex-sklad-datum').value||dnes(), stock=getStockAtDate(d), tt=getSortedToners(), lim=config.limit;
+  const rows=tt.map(t=>{const q=stock[t]||0, low=q<lim; return`<tr><td>${t}</td><td class="${low?'low':''}">${q} ks</td><td>${low?'<span class="badge out">nízký stav</span>':''}</td></tr>`;}).join('');
+  dl(`VPTMT-sklad-${d}.html`,htmlReport('Stav skladu',`K datu ${fmtDatum(d)}`,`<table><thead><tr><th>Typ toneru</th><th>Stav skladu</th><th>Stav</th></tr></thead><tbody>${rows}</tbody></table>`),'text/html'); msg('HTML report exportován.');
+}
+function getFilteredPohyby(od,doe,typ){ return history.filter(h=>(!od||h.datum>=od)&&(!doe||h.datum<=doe)&&(!typ||h.typ_pohybu===typ)); }
+function exportPohybyCsv(){
+  const od=document.getElementById('ex-od').value, doe=document.getElementById('ex-do').value||dnes(), typ=document.getElementById('ex-pohyb').value;
+  dl(`VPTMT-pohyby-${od||'vse'}-${doe}.csv`,'\uFEFF'+csvStr([['Datum','Typ toneru','Pohyb','Ks','Tiskárna','Poznámka'],...getFilteredPohyby(od,doe,typ).map(h=>[h.datum,h.typ,h.typ_pohybu==='prijem'?'příjem':'výdej',h.ks,h.tiskarna||'',h.poznamka||''])]),'text/csv'); msg('CSV exportováno.');
+}
+function exportPohybyHtml(){
+  const od=document.getElementById('ex-od').value, doe=document.getElementById('ex-do').value||dnes(), typ=document.getElementById('ex-pohyb').value;
+  const data=getFilteredPohyby(od,doe,typ); if(!data.length){msg('Žádné pohyby.','err');return;}
+  const rows=[...data].sort((a,b)=>b.datum.localeCompare(a.datum)).map(h=>`<tr><td>${fmtDatum(h.datum)}</td><td>${h.typ}</td><td><span class="badge ${h.typ_pohybu==='prijem'?'in':'out'}">${h.typ_pohybu==='prijem'?'příjem':'výdej'}</span></td><td>${h.ks}</td><td style="font-family:monospace;font-size:12px">${h.tiskarna||'–'}</td><td style="color:#666">${h.poznamka||'–'}</td></tr>`).join('');
+  dl(`VPTMT-pohyby-${od||'vse'}-${doe}.html`,htmlReport('Pohyby tonerů',`${od?fmtDatum(od)+' – ':''}${fmtDatum(doe)} · ${data.length} záznamů`,`<table><thead><tr><th>Datum</th><th>Toner</th><th>Pohyb</th><th>Ks</th><th>Tiskárna</th><th>Poznámka</th></tr></thead><tbody>${rows}</tbody></table>`),'text/html'); msg('HTML report exportován.');
+}
+function getSouhrn(od,doe){
+  const tt=getSortedToners(), s={}; tt.forEach(t=>s[t]={prijem:0,vydej:0});
+  history.filter(h=>(!od||h.datum>=od)&&(!doe||h.datum<=doe)).forEach(h=>{if(!s[h.typ])s[h.typ]={prijem:0,vydej:0};if(h.typ_pohybu==='prijem')s[h.typ].prijem+=h.ks;else s[h.typ].vydej+=h.ks;});
+  return tt.map(t=>({typ:t,...s[t]}));
+}
+function exportSouhrCsv(){
+  const od=document.getElementById('ex-sod').value, doe=document.getElementById('ex-sdo').value||dnes();
+  dl(`VPTMT-souhrn-${od||'vse'}-${doe}.csv`,'\uFEFF'+csvStr([['Typ toneru','Příjem (ks)','Výdej (ks)','Rozdíl'],...getSouhrn(od,doe).map(r=>[r.typ,r.prijem,r.vydej,r.prijem-r.vydej])]),'text/csv'); msg('CSV exportováno.');
+}
+function exportSouhrHtml(){
+  const od=document.getElementById('ex-sod').value, doe=document.getElementById('ex-sdo').value||dnes();
+  const rows=getSouhrn(od,doe).map(r=>{const diff=r.prijem-r.vydej; return`<tr><td>${r.typ}</td><td class="pos">${r.prijem} ks</td><td class="low">${r.vydej} ks</td><td style="font-weight:bold;color:${diff>=0?'#3B6D11':'#A32D2D'}">${diff>=0?'+':''}${diff} ks</td></tr>`;}).join('');
+  dl(`VPTMT-souhrn-${od||'vse'}-${doe}.html`,htmlReport('Souhrn spotřeby tonerů',`${od?fmtDatum(od)+' – ':''}${fmtDatum(doe)}`,`<table><thead><tr><th>Typ toneru</th><th>Celkem přijato</th><th>Celkem vydáno</th><th>Rozdíl</th></tr></thead><tbody>${rows}</tbody></table>`),'text/html'); msg('HTML report exportován.');
+}
+function getMesicRange(){
+  const rok=document.getElementById('ex-rok').value, mesic=document.getElementById('ex-mesic').value;
+  const od=`${rok}-${mesic}-01`, posledni=new Date(parseInt(rok),parseInt(mesic),0).getDate();
+  return{od, doe:`${rok}-${mesic}-${String(posledni).padStart(2,'0')}`, rok, mesic};
+}
+function exportMesicCsv(){
+  const{od,doe,rok,mesic}=getMesicRange(), tt=getSortedToners();
+  const denPred=new Date(parseInt(rok),parseInt(mesic)-1,0);
+  const stavStart=getStockAtDate(`${denPred.getFullYear()}-${String(denPred.getMonth()+1).padStart(2,'0')}-${String(denPred.getDate()).padStart(2,'0')}`);
+  const stavKonec=getStockAtDate(doe), souhrn=getSouhrn(od,doe), sm={};souhrn.forEach(r=>sm[r.typ]=r);
+  dl(`VPTMT-mesic-${rok}-${mesic}.csv`,'\uFEFF'+csvStr([['Typ toneru','Stav na začátku','Příjem','Výdej','Stav na konci'],...tt.map(t=>[t,stavStart[t]||0,sm[t]?.prijem||0,sm[t]?.vydej||0,stavKonec[t]||0])]),'text/csv'); msg('CSV exportováno.');
+}
+function exportMesicHtml(){
+  const{od,doe,rok,mesic}=getMesicRange(), tt=getSortedToners(), lim=config.limit;
+  const denPred=new Date(parseInt(rok),parseInt(mesic)-1,0);
+  const stavStart=getStockAtDate(`${denPred.getFullYear()}-${String(denPred.getMonth()+1).padStart(2,'0')}-${String(denPred.getDate()).padStart(2,'0')}`);
+  const stavKonec=getStockAtDate(doe), souhrn=getSouhrn(od,doe), sm={};souhrn.forEach(r=>sm[r.typ]=r);
+  const rows=tt.map(t=>{const qs=stavStart[t]||0,qp=sm[t]?.prijem||0,qv=sm[t]?.vydej||0,qk=stavKonec[t]||0,low=qk<lim;
+    return`<tr><td>${t}</td><td>${qs} ks</td><td class="pos">${qp>0?'+'+qp+' ks':'–'}</td><td class="${qv>0?'low':''}">${qv>0?'−'+qv+' ks':'–'}</td><td class="${low?'low':''}" style="font-weight:bold">${qk} ks${low?' ⚠':''}</td></tr>`;}).join('');
+  dl(`VPTMT-mesic-${rok}-${mesic}.html`,htmlReport(`Měsíční přehled – ${mesicNazev(mesic)} ${rok}`,`${fmtDatum(od)} – ${fmtDatum(doe)}`,`<table><thead><tr><th>Typ toneru</th><th>Stav na začátku</th><th>Příjem</th><th>Výdej</th><th>Stav na konci</th></tr></thead><tbody>${rows}</tbody></table>`),'text/html'); msg('HTML report exportován.');
+}
+
+// ── UI helpers ─────────────────────────────────────────────────
+function showTab(name,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active'); btn.classList.add('active');
+}
+function msg(text,type='ok'){
+  const el=document.getElementById('msg-global'); el.innerHTML=`<div class="msg msg-${type}">${text}</div>`; setTimeout(()=>el.innerHTML='',3500);
+}
+
+// ── PWA ────────────────────────────────────────────────────────
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;document.getElementById('install-btn').style.display='inline-flex';});
+function installApp(){ if(!deferredPrompt)return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(()=>{deferredPrompt=null;document.getElementById('install-btn').style.display='none';}); }
+window.addEventListener('appinstalled',()=>document.getElementById('install-btn').style.display='none');
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+// ── Init ───────────────────────────────────────────────────────
+document.getElementById('p-datum').value=dnes();
+document.getElementById('v-datum').value=dnes();
+initExportDates();
+
+// Zkontroluj zda Firebase byl nakonfigurován
+function checkConfig(){
+  const cfg = document.querySelector('script[type="module"]').textContent;
+  if(cfg.includes('TVUJ_API_KEY')){
+    document.getElementById('config-overlay').style.display='flex';
+    setSyncStatus('err','není nakonfigurován');
+  } else {
+    document.addEventListener('fb-ready', ()=>fbListen(), {once:true});
+  }
+}
+checkConfig();
+</script>
+</body>
+</html>
