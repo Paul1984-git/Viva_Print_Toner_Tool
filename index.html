@@ -25,7 +25,7 @@
     apiKey:            "AIzaSyAB4y0jPTUwy6fYGur1xDUlOmRWqB5bil4",
     authDomain:        "viva-ptmt.firebaseapp.com",
     databaseURL:       "https://viva-ptmt-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId:         "viva-ptmt",
+    projectId: "viva-ptmt",
     storageBucket:     "viva-ptmt.firebasestorage.app",
     messagingSenderId: "469649921663",
     appId:             "1:469649921663:web:44f2103258933b4581914a"
@@ -827,7 +827,7 @@ function startApp(){
   document.getElementById('v-datum').value=dnes();
   initExportDates();
   const cfg = document.querySelector('script[type="module"]').textContent;
-  if(cfg.includes('TVUJ_API_KEY')){
+  if(cfg.includes('AIzaSyAB4y0jPTUwy6fYGur1xDUlOmRWqB5bil4')){
     document.getElementById('config-overlay').style.display='flex';
     setSyncStatus('err','není nakonfigurován');
   } else {
@@ -846,4 +846,3 @@ if(sessionStorage.getItem(SESSION_KEY)==='1'){
 </script>
 </body>
 </html>
-
